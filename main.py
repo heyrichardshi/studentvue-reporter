@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta, date
 from studentvue import StudentVue
 
 def load_credentials(filename: str = 'credentials.json') -> dict:
@@ -78,18 +79,50 @@ def generate_full_report(name: str, courses: dict, write: bool = False) -> str:
 
     with open(f'{name}.report.txt', 'w') as file:
         file.write(report)
-    
+
+    return report
+
+def generate_partial_report(name: str, courses: dict, lookback: int, write: bool = False) -> str:
+    report_width = 120
+    separator_width = 2
+    due_date_width = 10
+    score_width = 20
+    assignment_name_width = report_width - 2 * separator_width - due_date_width - score_width
+    separator_string = separator_width * ' '
+
+    anchor_date = date.today() - timedelta(days=lookback)
+
+    report = name.ljust(report_width, '_') + '\n'
+    for course, markings in courses.items():
+        report += '\n<*> ' + course.upper() + '\n'
+        report += 'Assignment'.ljust(assignment_name_width) + separator_string + \
+                  'Due Date'.ljust(due_date_width) + separator_string + 'Score'.rjust(score_width) + '\n'
+        for mark_name, marking in markings.items():
+            report += mark_name.ljust(report_width - score_width, '>') + \
+                      f'{marking["Overall Grade"]} ({marking["Raw Grade"]})'.rjust(score_width, '>') + '\n'
+            for assignment in marking['Assignments']:
+                due_date = assignment['Due Date']
+                dd_month, dd_day, dd_year = due_date.split('/')
+                if date(int(dd_year), int(dd_month), int(dd_day)) > anchor_date:
+                    assignment_name = assignment['Name']
+                    if len(assignment_name) > assignment_name_width:
+                        assignment_name = assignment_name[:(assignment_name_width - 3)] + '...'
+                    score = parse_score(assignment['Score'], assignment['Score Type'], assignment['Points'])
+                    report += assignment_name.ljust(assignment_name_width) + separator_string + due_date.ljust(due_date_width) + \
+                              separator_string + score.rjust(score_width) + '\n'
+
+    with open(f'{name}.partial.report.txt', 'w') as file:
+        file.write(report)
+
     return report
 
 def main():
-    credentials = load_credentials()
-    students = list(credentials.keys())
-    print(students)
-    student = credentials[students[0]]
-    print(student)
-    sv = StudentVue(student['username'], student['password'], student['domain'])
-    gradebook = json.loads(json.dumps(sv.get_gradebook()))
-    print(generate_full_report(students[0], clean_grades(gradebook), True))
+    for student, credentials in load_credentials().items():
+        sv = StudentVue(credentials['username'], credentials['password'], credentials['domain'])
+        gradebook = json.loads(json.dumps(sv.get_gradebook()))
+        grades = clean_grades(gradebook)
+        generate_partial_report(student, grades, 14, True)
+        # generate_full_report(student, grades, True)
 
 if __name__ == "__main__":
     main()
