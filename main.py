@@ -38,7 +38,7 @@ def clean_grades(gradebook: dict) -> dict:
     return courses
 
 def parse_score(score: str, score_type: str, points: str) -> str:
-    if score == 'Not Graded':
+    if score in ['Not Graded', 'Not Due']:
         return score
     if score_type == 'Percentage':
         return f'{float(score):.2f}'
@@ -121,8 +121,8 @@ def main():
         sv = StudentVue(credentials['username'], credentials['password'], credentials['domain'])
         gradebook = json.loads(json.dumps(sv.get_gradebook()))
         grades = clean_grades(gradebook)
-        generate_partial_report(student, grades, 14, True)
-        # generate_full_report(student, grades, True)
+        # generate_partial_report(student, grades, 14, True)
+        generate_full_report(student, grades, True)
 
 if __name__ == "__main__":
     main()
