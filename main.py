@@ -1,6 +1,9 @@
 import json
+import os
 from datetime import datetime, timedelta, date
 from studentvue import StudentVue
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 def load_credentials(filename: str = 'credentials.json') -> dict:
     with open('credentials.json', 'r') as f:
@@ -15,7 +18,7 @@ def clean_grades(gradebook: dict) -> dict:
     # current_reporting_period is a dict with same keys as reporting_periods sans `@Index`
 
     courses = {
-        course['@Title']:{
+        course['@Title']: {
             mark['@MarkName']: {
                 'Overall Grade': mark['@CalculatedScoreString'],
                 'Raw Grade': mark['@CalculatedScoreRaw'],
@@ -32,7 +35,7 @@ def clean_grades(gradebook: dict) -> dict:
                 ]
             }
             for mark in course['Marks']['Mark']
-        }
+        } if course['Marks'].get('Mark') else {}
         for course in gradebook['Gradebook']['Courses']['Course']
     }
     return courses
@@ -116,13 +119,37 @@ def generate_partial_report(name: str, courses: dict, lookback: int, write: bool
 
     return report
 
+def send_email(report: str, subject: str):
+    from_email = os.environ.get('SENDGRID_FROM_EMAIL')
+    to_emails = os.environ.get('SENDGRID_TO_EMAILS')
+    report = report.replace('\n', '<br>')
+
+    if not (from_email and to_emails):
+        print('Invalid from or to email(s).')
+        return
+
+    message = Mail(
+        from_email=from_email,
+        to_emails=to_emails,
+        subject=subject,
+        html_content=f'<div style="width:865px"><code style="width:100%">{report}</code></div>')
+    try:
+        sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
+        response = sg.send(message)
+        print(response.status_code)
+        print(response.body)
+        print(response.headers)
+    except Exception as e:
+        print(e.message)
+
 def main():
     for student, credentials in load_credentials().items():
         sv = StudentVue(credentials['username'], credentials['password'], credentials['domain'])
         gradebook = json.loads(json.dumps(sv.get_gradebook()))
         grades = clean_grades(gradebook)
-        # generate_partial_report(student, grades, 14, True)
-        generate_full_report(student, grades, True)
+        partial_report = generate_partial_report(student, grades, 14)
+        # generate_full_report(student, grades, True)
+        send_email(partial_report, student + ' - Grade Report (Past 2 Weeks)')
 
 if __name__ == "__main__":
     main()
