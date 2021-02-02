@@ -47,3 +47,9 @@ credentials.json
 *.report.txt
 *.DS_Store
 sendgrid.env
+
+# Temporarily ignore Azure Function files during private development
+.vscode/
+host.json
+reporter/
+requirements.txt
