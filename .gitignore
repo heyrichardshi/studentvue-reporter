@@ -44,6 +44,7 @@ __pycache__/
 
 # Other
 credentials.json
+reports/
 *.report.txt
 *.DS_Store
 sendgrid.env

@@ -31,10 +31,14 @@ def clean_grades(gradebook: dict) -> dict:
                         'Score Type': assignment['@ScoreType'],  # possible values: 'Percentage', 'Raw Score'
                         'Points': assignment['@Points']
                     }
-                    for assignment in mark['Assignments'].get('Assignment', [])
+                    for assignment in (mark['Assignments'].get('Assignment', [])
+                                       if isinstance(mark['Assignments'].get('Assignment', []), list)
+                                       else [mark['Assignments'].get('Assignment')])
                 ]
             }
-            for mark in course['Marks']['Mark']
+            for mark in (course['Marks']['Mark']
+                         if isinstance(course['Marks']['Mark'], list)
+                         else [course['Marks']['Mark']])
         } if course['Marks'].get('Mark') else {}
         for course in gradebook['Gradebook']['Courses']['Course']
     }
@@ -80,7 +84,7 @@ def generate_full_report(name: str, courses: dict, write: bool = False) -> str:
                 report += assignment_name.ljust(assignment_name_width) + separator_string + assignment['Due Date'].ljust(due_date_width) + \
                           separator_string + score.rjust(score_width) + '\n'
 
-    with open(f'{name}.report.txt', 'w') as file:
+    with open(f'reports/{name}.report.txt', 'w') as file:
         file.write(report)
 
     return report
@@ -114,7 +118,7 @@ def generate_partial_report(name: str, courses: dict, lookback: int, write: bool
                     report += assignment_name.ljust(assignment_name_width) + separator_string + due_date.ljust(due_date_width) + \
                               separator_string + score.rjust(score_width) + '\n'
 
-    with open(f'{name}.partial.report.txt', 'w') as file:
+    with open(f'reports/{name}.partial.report.txt', 'w') as file:
         file.write(report)
 
     return report
@@ -146,10 +150,13 @@ def main():
     for student, credentials in load_credentials().items():
         sv = StudentVue(credentials['username'], credentials['password'], credentials['domain'])
         gradebook = json.loads(json.dumps(sv.get_gradebook()))
+        # TODO: implement option to view specific marking period
+        # with open(f'reports/{student}.gradebook.report.txt', 'w') as file:
+        #     file.write(json.dumps(gradebook))
         grades = clean_grades(gradebook)
-        partial_report = generate_partial_report(student, grades, 14)
+        partial_report = generate_partial_report(student, grades, 14, True)
         # generate_full_report(student, grades, True)
-        send_email(partial_report, student + ' - Grade Report (Past 2 Weeks)')
+        # send_email(partial_report, student + ' - Grade Report (Past 2 Weeks)')
 
 if __name__ == "__main__":
     main()
