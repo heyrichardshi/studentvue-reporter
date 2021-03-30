@@ -77,8 +77,8 @@ def generate_full_report(name: str, courses: dict, write: bool = False) -> str:
             report += mark_name.ljust(report_width - score_width, '>') + \
                       f'{marking["Overall Grade"]} ({marking["Raw Grade"]})'.rjust(score_width, '>') + '\n'
             for assignment in marking['Assignments']:
-                assignment_name = assignment['Name']
-                if len(assignment_name) > assignment_name_width:
+                assignment_name = str(assignment['Name'])
+                if len(str(assignment_name)) > assignment_name_width:
                     assignment_name = assignment_name[:(assignment_name_width - 3)] + '...'
                 score = parse_score(assignment['Score'], assignment['Score Type'], assignment['Points'])
                 report += assignment_name.ljust(assignment_name_width) + separator_string + assignment['Due Date'].ljust(due_date_width) + \
@@ -111,7 +111,7 @@ def generate_partial_report(name: str, courses: dict, lookback: int, write: bool
                 due_date = assignment['Due Date']
                 dd_month, dd_day, dd_year = due_date.split('/')
                 if date(int(dd_year), int(dd_month), int(dd_day)) > anchor_date:
-                    assignment_name = assignment['Name']
+                    assignment_name = str(assignment['Name'])
                     if len(assignment_name) > assignment_name_width:
                         assignment_name = assignment_name[:(assignment_name_width - 3)] + '...'
                     score = parse_score(assignment['Score'], assignment['Score Type'], assignment['Points'])
@@ -127,6 +127,7 @@ def send_email(report: str, subject: str):
     from_email = os.environ.get('SENDGRID_FROM_EMAIL')
     to_emails = os.environ.get('SENDGRID_TO_EMAILS')
     report = report.replace('\n', '<br>')
+    report = report.replace(' ', '&nbsp;')
 
     if not (from_email and to_emails):
         print('Invalid from or to email(s).')
